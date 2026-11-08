@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Node / UI
+node_modules/
+ui/dist/
+ui/test-results/
+ui/playwright-report/
+ui/coverage/
+
+# Generated at build time (edge-tts audio is not redistributed, see backend/src/gideon/fixtures.py)
+fixtures/
+bench-results/
+
+# Local
+.env
+.scratch/
+*.log
+.DS_Store
+Thumbs.db

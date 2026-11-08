@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.png binary
+*.wav binary
+*.mp3 binary
+ui/src/shared/protocol.ts linguist-generated=true
+protocol/schema.json linguist-generated=true
