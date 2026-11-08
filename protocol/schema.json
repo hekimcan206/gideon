@@ -1,0 +1,684 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/hekimcan206/gideon/protocol/v1",
+  "title": "GideonProtocol",
+  "description": "GIDEON WebSocket protocol v1. Generated from gideon/protocol.py.",
+  "type": "object",
+  "properties": {
+    "server": {
+      "$ref": "#/$defs/ServerMessage"
+    },
+    "client": {
+      "$ref": "#/$defs/ClientMessage"
+    }
+  },
+  "$defs": {
+    "AssistantState": {
+      "enum": [
+        "idle",
+        "listening",
+        "thinking",
+        "speaking"
+      ],
+      "title": "AssistantState",
+      "type": "string"
+    },
+    "Cancel": {
+      "additionalProperties": false,
+      "description": "Stop speaking/thinking now (manual barge-in).",
+      "properties": {
+        "v": {
+          "const": 1,
+          "default": 1,
+          "type": "integer"
+        },
+        "type": {
+          "const": "cancel",
+          "default": "cancel",
+          "type": "string"
+        }
+      },
+      "title": "Cancel",
+      "type": "object",
+      "required": [
+        "v",
+        "type"
+      ]
+    },
+    "ClientMessage": {
+      "discriminator": {
+        "mapping": {
+          "cancel": "#/$defs/Cancel",
+          "hello": "#/$defs/HelloClient",
+          "ping": "#/$defs/Ping",
+          "ptt": "#/$defs/PushToTalk",
+          "say": "#/$defs/Say"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/HelloClient"
+        },
+        {
+          "$ref": "#/$defs/PushToTalk"
+        },
+        {
+          "$ref": "#/$defs/Cancel"
+        },
+        {
+          "$ref": "#/$defs/Say"
+        },
+        {
+          "$ref": "#/$defs/Ping"
+        }
+      ]
+    },
+    "EngineInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "wake": {
+          "type": "string"
+        },
+        "vad": {
+          "type": "string"
+        },
+        "stt": {
+          "type": "string"
+        },
+        "tts": {
+          "type": "string"
+        },
+        "audio": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "wake",
+        "vad",
+        "stt",
+        "tts",
+        "audio"
+      ],
+      "title": "EngineInfo",
+      "type": "object"
+    },
+    "ErrorMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1,
+          "default": 1,
+          "type": "integer"
+        },
+        "type": {
+          "const": "error",
+          "default": "error",
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "interaction_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "code",
+        "message"
+      ],
+      "title": "ErrorMessage",
+      "type": "object"
+    },
+    "HelloClient": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1,
+          "default": 1,
+          "type": "integer"
+        },
+        "type": {
+          "const": "hello",
+          "default": "hello",
+          "type": "string"
+        },
+        "client": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "token": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "client"
+      ],
+      "title": "HelloClient",
+      "type": "object"
+    },
+    "HelloServer": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1,
+          "default": 1,
+          "type": "integer"
+        },
+        "type": {
+          "const": "hello",
+          "default": "hello",
+          "type": "string"
+        },
+        "server": {
+          "default": "gideon",
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/AssistantState"
+        },
+        "engines": {
+          "$ref": "#/$defs/EngineInfo"
+        },
+        "skills": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "server",
+        "version",
+        "state",
+        "engines",
+        "skills"
+      ],
+      "title": "HelloServer",
+      "type": "object"
+    },
+    "NotificationMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1,
+          "default": 1,
+          "type": "integer"
+        },
+        "type": {
+          "const": "notification",
+          "default": "notification",
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "text",
+        "language"
+      ],
+      "title": "NotificationMessage",
+      "type": "object"
+    },
+    "Outcome": {
+      "enum": [
+        "ok",
+        "no_speech",
+        "empty_transcript",
+        "barge_in",
+        "cancelled",
+        "error"
+      ],
+      "title": "Outcome",
+      "type": "string"
+    },
+    "Ping": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1,
+          "default": 1,
+          "type": "integer"
+        },
+        "type": {
+          "const": "ping",
+          "default": "ping",
+          "type": "string"
+        },
+        "nonce": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "nonce"
+      ],
+      "title": "Ping",
+      "type": "object"
+    },
+    "Pong": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1,
+          "default": 1,
+          "type": "integer"
+        },
+        "type": {
+          "const": "pong",
+          "default": "pong",
+          "type": "string"
+        },
+        "nonce": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "nonce"
+      ],
+      "title": "Pong",
+      "type": "object"
+    },
+    "PushToTalk": {
+      "additionalProperties": false,
+      "description": "Start listening without the wake word (UI button or hotkey).",
+      "properties": {
+        "v": {
+          "const": 1,
+          "default": 1,
+          "type": "integer"
+        },
+        "type": {
+          "const": "ptt",
+          "default": "ptt",
+          "type": "string"
+        }
+      },
+      "title": "PushToTalk",
+      "type": "object",
+      "required": [
+        "v",
+        "type"
+      ]
+    },
+    "ResponseMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1,
+          "default": 1,
+          "type": "integer"
+        },
+        "type": {
+          "const": "response",
+          "default": "response",
+          "type": "string"
+        },
+        "interaction_id": {
+          "type": "string"
+        },
+        "skill": {
+          "type": "string"
+        },
+        "intent": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "interaction_id",
+        "skill",
+        "intent",
+        "text",
+        "language"
+      ],
+      "title": "ResponseMessage",
+      "type": "object"
+    },
+    "Say": {
+      "additionalProperties": false,
+      "description": "A typed command: skips wake word, VAD and STT, runs the same skills and TTS.",
+      "properties": {
+        "v": {
+          "const": 1,
+          "default": 1,
+          "type": "integer"
+        },
+        "type": {
+          "const": "say",
+          "default": "say",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "enum": [
+                "en",
+                "tr"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "text"
+      ],
+      "title": "Say",
+      "type": "object"
+    },
+    "ServerMessage": {
+      "discriminator": {
+        "mapping": {
+          "error": "#/$defs/ErrorMessage",
+          "hello": "#/$defs/HelloServer",
+          "notification": "#/$defs/NotificationMessage",
+          "pong": "#/$defs/Pong",
+          "response": "#/$defs/ResponseMessage",
+          "state": "#/$defs/StateChanged",
+          "trace": "#/$defs/TraceMessage",
+          "transcript": "#/$defs/TranscriptMessage",
+          "wake": "#/$defs/WakeDetected"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/HelloServer"
+        },
+        {
+          "$ref": "#/$defs/StateChanged"
+        },
+        {
+          "$ref": "#/$defs/WakeDetected"
+        },
+        {
+          "$ref": "#/$defs/TranscriptMessage"
+        },
+        {
+          "$ref": "#/$defs/ResponseMessage"
+        },
+        {
+          "$ref": "#/$defs/TraceMessage"
+        },
+        {
+          "$ref": "#/$defs/NotificationMessage"
+        },
+        {
+          "$ref": "#/$defs/ErrorMessage"
+        },
+        {
+          "$ref": "#/$defs/Pong"
+        }
+      ]
+    },
+    "StageSpan": {
+      "additionalProperties": false,
+      "description": "One bar of the latency waterfall, relative to the first mark of the interaction.",
+      "properties": {
+        "stage": {
+          "type": "string"
+        },
+        "start_ms": {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "duration_ms": {
+          "minimum": 0.0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "stage",
+        "start_ms",
+        "duration_ms"
+      ],
+      "title": "StageSpan",
+      "type": "object"
+    },
+    "StateChanged": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1,
+          "default": 1,
+          "type": "integer"
+        },
+        "type": {
+          "const": "state",
+          "default": "state",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/AssistantState"
+        },
+        "previous": {
+          "$ref": "#/$defs/AssistantState"
+        },
+        "interaction_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "state",
+        "previous"
+      ],
+      "title": "StateChanged",
+      "type": "object"
+    },
+    "TraceMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1,
+          "default": 1,
+          "type": "integer"
+        },
+        "type": {
+          "const": "trace",
+          "default": "trace",
+          "type": "string"
+        },
+        "interaction_id": {
+          "type": "string"
+        },
+        "outcome": {
+          "$ref": "#/$defs/Outcome"
+        },
+        "stages": {
+          "items": {
+            "$ref": "#/$defs/StageSpan"
+          },
+          "type": "array"
+        },
+        "marks_ms": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
+        },
+        "wake_to_first_audio_ms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "speech_end_to_first_audio_ms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "interaction_id",
+        "outcome",
+        "stages",
+        "marks_ms"
+      ],
+      "title": "TraceMessage",
+      "type": "object"
+    },
+    "TranscriptMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1,
+          "default": 1,
+          "type": "integer"
+        },
+        "type": {
+          "const": "transcript",
+          "default": "transcript",
+          "type": "string"
+        },
+        "interaction_id": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string"
+        },
+        "source": {
+          "default": "speech",
+          "enum": [
+            "speech",
+            "typed"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "interaction_id",
+        "text",
+        "language",
+        "source"
+      ],
+      "title": "TranscriptMessage",
+      "type": "object"
+    },
+    "WakeDetected": {
+      "additionalProperties": false,
+      "properties": {
+        "v": {
+          "const": 1,
+          "default": 1,
+          "type": "integer"
+        },
+        "type": {
+          "const": "wake",
+          "default": "wake",
+          "type": "string"
+        },
+        "interaction_id": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "score": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        "barge_in": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "v",
+        "type",
+        "interaction_id",
+        "model",
+        "score",
+        "barge_in"
+      ],
+      "title": "WakeDetected",
+      "type": "object"
+    }
+  }
+}
