@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="no-referrer" />
+    <title>GIDEON</title>
+    <link rel="stylesheet" href="/src/renderer/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="orb" id="orb" aria-hidden="true"></span>
+        <div>
+          <h1>GIDEON</h1>
+          <p class="state" id="state-label" aria-live="polite">idle</p>
+        </div>
+      </div>
+      <div class="conn" id="conn" role="status">connecting…</div>
+    </header>
+
+    <main class="layout">
+      <section class="panel controls" aria-label="Controls">
+        <div class="buttons">
+          <button id="ptt" type="button">Push to talk</button>
+          <button id="stop" type="button" class="secondary">Stop</button>
+        </div>
+        <form id="say-form" class="say" autocomplete="off">
+          <input id="say-input" type="text" maxlength="500" placeholder="Type a command, e.g. “saat kaç?” or “set a timer for 5 minutes”" aria-label="Typed command" />
+          <button type="submit" class="secondary">Send</button>
+        </form>
+        <p class="hint">Say <strong>“Hey Jarvis”</strong>, then a command. English and Turkish.</p>
+        <dl class="engines" id="engines"></dl>
+      </section>
+
+      <section class="panel waterfall-panel" aria-label="Latency waterfall">
+        <div class="panel-head">
+          <h2>Latency</h2>
+          <div class="headline" id="headline"></div>
+        </div>
+        <div class="waterfall" id="waterfall"><p class="empty">No interaction yet.</p></div>
+        <ul class="legend">
+          <li><i class="k-user"></i>user speaking</li>
+          <li><i class="k-audio"></i>audio policy</li>
+          <li><i class="k-compute"></i>compute</li>
+          <li><i class="k-network"></i>network</li>
+          <li><i class="k-output"></i>output</li>
+        </ul>
+      </section>
+
+      <section class="panel transcript-panel" aria-label="Transcript">
+        <div class="panel-head">
+          <h2>Transcript</h2>
+          <div class="summary" id="summary"></div>
+        </div>
+        <ol class="transcript" id="transcript"></ol>
+        <div class="toasts" id="toasts" aria-live="polite"></div>
+        <p class="error" id="error" role="alert" hidden></p>
+      </section>
+    </main>
+    <script type="module" src="/src/renderer/main.ts"></script>
+  </body>
+</html>

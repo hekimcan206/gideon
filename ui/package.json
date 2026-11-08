@@ -1,0 +1,36 @@
+{
+  "name": "gideon-ui",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GIDEON desktop UI: Electron shell + Vite/TypeScript renderer talking to the Python backend over WebSocket.",
+  "license": "MIT",
+  "author": "hekimcan206",
+  "main": "dist/electron/main.cjs",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "gen:protocol": "json2ts --input ../protocol/schema.json --output src/shared/protocol.ts --unreachableDefinitions --additionalProperties false --bannerComment \"/* Generated from protocol/schema.json by json-schema-to-typescript. Do not edit; run npm run gen:protocol. */\"",
+    "dev": "vite",
+    "build:renderer": "vite build",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "build": "npm run build:electron && npm run build:renderer",
+    "start": "npm run build && electron .",
+    "preview": "vite preview --port 18766 --strictPort --host 127.0.0.1",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
+    "test": "vitest run",
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "26.6.6",
+    "@vitest/coverage-v8": "5.1.0",
+    "electron": "45.2.3",
+    "happy-dom": "21.0.4",
+    "json-schema-to-typescript": "16.0.0",
+    "typescript": "6.0.3",
+    "vite": "8.3.6",
+    "vitest": "5.1.0"
+  }
+}
