@@ -1,0 +1,201 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+
+jobs:
+  backend:
+    name: backend (lint, types, unit tests with fakes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install (core + dev, no speech engines)
+        run: pip install -e ".[dev]"
+
+      - name: Lint and format
+        run: |
+          ruff check src tests
+          ruff format --check src tests
+
+      - name: Type check (mypy --strict)
+        run: mypy
+
+      - name: Protocol schema is up to date
+        run: |
+          python -m gideon export-schema --out ../protocol/schema.json
+          git diff --exit-code -- ../protocol/schema.json
+
+      # The engine integration tests skip themselves here (no engines installed); they run in the next job.
+      - name: Unit tests
+        run: pytest -m "not engines" --cov --cov-report=term --cov-report=markdown-append:"$GITHUB_STEP_SUMMARY"
+
+  engines:
+    name: real engines on synthetic WAVs (openWakeWord, faster-whisper, edge-tts)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install with engines
+        run: |
+          pip install -e ".[engines,dev]"
+          pip install --no-deps openwakeword==0.6.0
+
+      # Supply chain: known-vulnerability check of the complete installed dependency set (engines included).
+      - name: Audit Python dependencies
+        run: |
+          python -m pip install --upgrade pip   # the runner's bundled pip itself has advisories
+          pip install pip-audit==2.10.1
+          pip-audit --skip-editable --progress-spinner off
+
+      - name: Cache models
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/huggingface
+          key: hf-whisper-base-${{ hashFiles('backend/pyproject.toml') }}
+
+      # Fixtures are synthesised with edge-tts at build time (not committed: redistribution terms are unclear).
+      - name: Cache fixtures
+        id: fixtures
+        uses: actions/cache@v6
+        with:
+          path: fixtures
+          key: fixtures-${{ hashFiles('backend/src/gideon/fixtures.py') }}
+
+      - name: Generate fixtures
+        if: steps.fixtures.outputs.cache-hit != 'true'
+        run: python -m gideon fixtures --out ../fixtures
+
+      - name: Integration tests (real pipeline, CPU int8)
+        env:
+          GIDEON_NETWORK_TESTS: "1"
+        run: pytest -m engines -v
+
+      - name: Latency smoke run (2 rounds; numbers in docs/benchmarks.md are from a local machine)
+        run: |
+          python -m gideon bench --runs 2 --label ci --out ../bench-results
+          cat ../bench-results/summary-ci.json >> "$GITHUB_STEP_SUMMARY" || true
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: bench-ci
+          path: bench-results/
+          retention-days: 14
+
+  ui:
+    name: ui (types, unit tests, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Audit npm dependencies
+        run: npm audit --audit-level=high
+
+      - name: Generated protocol types match the schema
+        run: |
+          npm run gen:protocol
+          git diff --exit-code -- src/shared/protocol.ts
+
+      - run: npm run typecheck
+
+      - name: Unit tests (Vitest)
+        run: npx vitest run --coverage --coverage.reporter=text --coverage.reporter=json-summary
+
+      - run: npm run build
+
+  compose-demo:
+    name: docker compose demo + Playwright
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [backend, ui]
+    steps:
+      - uses: actions/checkout@v7
+
+      # The README promises `docker compose up` runs the demo with zero manual steps; this job keeps it true.
+      - name: Start the stack
+        run: docker compose up -d --build
+
+      - name: Wait for the backend
+        run: |
+          for i in $(seq 1 90); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' gideon-backend-1 2>/dev/null || echo starting)
+            [ "$status" = "healthy" ] && break
+            sleep 2
+          done
+          test "$status" = "healthy" || { docker compose logs; exit 1; }
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Playwright against the running stack
+        working-directory: ui
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          GIDEON_SCREENSHOT=../demo.png npx playwright test
+
+      - name: Traces were written by the real pipeline
+        run: |
+          docker compose exec -T backend sh -c 'test -s /data/traces.jsonl && wc -l /data/traces.jsonl && grep -c "\"outcome\": \"ok\"" /data/traces.jsonl'
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: demo-screenshot
+          path: demo.png
+          retention-days: 14
+
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs
