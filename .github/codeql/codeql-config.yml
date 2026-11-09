@@ -1,0 +1,5 @@
+name: codeql config
+# Generated from protocol/schema.json (see ui/package.json gen:protocol); reviewed via the schema instead.
+paths-ignore:
+  - ui/src/shared/protocol.ts
+  - ui/dist
