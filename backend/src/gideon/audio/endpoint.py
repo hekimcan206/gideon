@@ -34,6 +34,10 @@ class EndpointConfig:
     min_speech_ms: int = 160  # 2 voiced frames before we believe it is speech (clicks, breaths)
     max_utterance_ms: int = 8_000
     no_speech_timeout_ms: int = 4_000
+    # The tail of the wake phrase ("...vis") is still in the first frames after detection. Voiced frames in this
+    # window must not start the utterance: otherwise the pause between wake word and command (often > 560 ms
+    # when the command starts softly) ends an "utterance" that is only the wake-word tail. Found in the benchmark.
+    start_grace_ms: int = 240
 
 
 class Endpointer:
@@ -57,6 +61,8 @@ class Endpointer:
         cfg = self.config
         self._elapsed_ms += FRAME_MS
         speech = self.vad.is_speech(pcm)
+        if not self._started and self._elapsed_ms <= cfg.start_grace_ms:
+            speech = False
         if speech:
             self._voiced_ms += FRAME_MS
             self._silence_ms = 0
