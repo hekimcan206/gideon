@@ -1,0 +1,64 @@
+# `docker compose up` runs the whole demo with no microphone: synthetic WAV utterances are generated once with
+# edge-tts, then replayed in a loop through the real pipeline (openWakeWord -> WebRTC VAD -> faster-whisper ->
+# skills -> edge-tts). Open http://localhost:18766 to watch states, transcripts and the latency waterfall.
+# Needs internet access for edge-tts (fixture generation and spoken answers). Offline: GIDEON_TTS=simulated
+# still needs fixtures generated once while online.
+name: gideon
+
+services:
+  fixtures:
+    build:
+      context: ./backend
+      target: runtime
+    image: gideon-backend:local
+    entrypoint: ["python", "-m", "gideon", "fixtures", "--out", "/fixtures"]
+    volumes:
+      - fixtures:/fixtures
+    restart: "no"
+
+  backend:
+    image: gideon-backend:local
+    depends_on:
+      fixtures:
+        condition: service_completed_successfully
+    environment:
+      GIDEON_AUDIO: wav
+      GIDEON_WAV_LOOP: "1"
+      GIDEON_WAV_GAP_S: "4"
+      GIDEON_TTS: ${GIDEON_TTS:-edge}
+      GIDEON_STT_MODEL: base
+      # Browser-mode UI below, plus the desktop app (app://gideon) pointed at this backend.
+      GIDEON_ALLOWED_ORIGINS: http://localhost:18766,http://127.0.0.1:18766,app://gideon
+      GIDEON_LOG_LEVEL: INFO
+    ports:
+      - "127.0.0.1:18765:18765"
+    volumes:
+      - fixtures:/fixtures:ro
+      - data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    restart: unless-stopped
+
+  ui:
+    build: ./ui
+    image: gideon-ui:local
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:18766:8080"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    restart: unless-stopped
+
+volumes:
+  fixtures:
+  data:
