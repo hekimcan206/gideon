@@ -39,8 +39,8 @@ class FasterWhisperStt:
     Romanian and "Notlarımı oku" Portuguese, with en/tr probabilities a few hundredths apart. Detection also costs
     a full encoder pass. So with no fixed language the utterance is decoded *in every supported language in
     parallel* (one CTranslate2 worker each; CTranslate2 releases the GIL) and the decoding with the highest mean
-    log-probability wins: on a multi-core CPU this costs about one decode of wall time and was right on every
-    fixture. With ``language`` set, a single decode runs.
+    log-probability wins. It picked the right language on 45/45 fixture decodes; the price is about 1.7x the
+    wall time of a single decode on a 16-thread laptop CPU (ADR 0002). With ``language`` set, a single decode runs.
 
     Vocabulary prompts. Each language's decode is primed with example phrases of the installed skills
     (``initial_prompt``), which biases Whisper toward the command vocabulary ("kur", not "kor"). Disable with
@@ -65,7 +65,11 @@ class FasterWhisperStt:
         self.language = language
         self.languages = (language,) if language else tuple(allowed_languages)
         cores = os.cpu_count() or 4
-        threads = cpu_threads if cpu_threads is not None else max(2, min(8, cores // len(self.languages)))
+        # Physical cores (logical / 2) split across the parallel decodes. Measured: 8 threads x 2 decodes on a
+        # 16-thread CPU is slower than 4 x 2 (oversubscription; docs/benchmarks.md).
+        threads = (
+            cpu_threads if cpu_threads is not None else max(2, min(8, cores // 2 // len(self.languages)))
+        )
         self._model: Any = WhisperModel(
             model,
             device="cpu",
