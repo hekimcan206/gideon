@@ -170,6 +170,7 @@ STT_MATRIX: tuple[tuple[str, str | None, bool, int], ...] = (
     ("base", None, False, 4),
     ("base", None, True, 8),
     ("base", "fixed", True, 8),
+    ("small", None, True, 4),
 )
 
 
@@ -236,5 +237,7 @@ async def run_stt(fixtures: Path, out_dir: Path, runs: int, models: list[str]) -
         rows.append(row)
         print(row, flush=True)
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "stt-matrix.json").write_text(json.dumps(rows, indent=2) + "\n", encoding="utf-8")
+    (out_dir / f"stt-matrix-{'-'.join(models)}.json").write_text(
+        json.dumps(rows, indent=2) + "\n", encoding="utf-8"
+    )
     return rows
