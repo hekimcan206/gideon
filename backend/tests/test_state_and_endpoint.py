@@ -57,7 +57,9 @@ def feed(endpointer: Endpointer, spec: str) -> list[tuple[int, EndpointKind, int
     return events
 
 
-CFG = EndpointConfig(silence_ms=400, min_speech_ms=160, max_utterance_ms=2_000, no_speech_timeout_ms=800)
+CFG = EndpointConfig(
+    silence_ms=400, min_speech_ms=160, max_utterance_ms=2_000, no_speech_timeout_ms=800, start_grace_ms=0
+)
 
 
 def test_speech_end_fires_after_the_hangover_and_points_at_the_last_voiced_frame() -> None:
@@ -96,3 +98,13 @@ def test_energy_vad_threshold() -> None:
     assert not vad.is_speech(SILENCE)
     assert not vad.is_speech(SILENCE[:0])
     assert not vad.is_speech((VOICED // 300).astype(VOICED.dtype))  # ~ -63 dBFS
+
+
+def test_wake_word_tail_inside_the_grace_window_does_not_start_the_utterance() -> None:
+    """Regression from the benchmark: "...vis" + a long pause used to end an utterance before the command began."""
+    cfg = EndpointConfig(silence_ms=400, min_speech_ms=160, no_speech_timeout_ms=4_000, start_grace_ms=240)
+    # 3 voiced frames of wake-word tail, a 6-frame pause (longer than the hangover), then the command.
+    events = feed(Endpointer(EnergyVad(), cfg), "VVV SSSSSS VVVV SSSSS")
+    assert events == [(10, EndpointKind.SPEECH_START, 10), (17, EndpointKind.SPEECH_END, 12)]
+    without_grace = feed(Endpointer(EnergyVad(), CFG), "VVV SSSSSS VVVV SSSSS")
+    assert without_grace[-1] == (7, EndpointKind.SPEECH_END, 2)  # the bug: ends inside the pause
